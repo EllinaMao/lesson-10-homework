@@ -3,26 +3,22 @@
 import azure.cognitiveservices.speech as speechsdk
 from azure.core.credentials import AzureKeyCredential
 
-import utils as u
+from . import utils as u
 
+def recognize_from_mic(language="ru-RU"):
+    try:
+        AZURE_URL, AZURE_KEY, AZURE_REGION = u.get_creds()
+        speech_config = speechsdk.SpeechConfig(
+            subscription=AZURE_KEY, region=AZURE_REGION
+        )
+        speech_config.speech_recognition_language = language
 
-(AZURE_URL, AZURE_KEY, AZURE_REGION) = u.get_creds()
+        recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
+        result = recognizer.recognize_once()
 
-speech_config = speechsdk.SpeechConfig(
-    subscription=AZURE_KEY,
-    region=AZURE_REGION,
-    # speech_recognition_language="uk-UA"
-    speech_recognition_language="ru-ru"
-)
-
-recodnizer = speechsdk.SpeechRecognizer(speech_config= speech_config)
-result = recodnizer.recognize_once()
-
-print("Text: ", result.text)
-
-"""
-Text:  В общем, я що так говорив, я просто хочу вибити як ти робиш чи можеш встановити мене, розповісти про це дуже дякую.
-
-
-Text:  В общем, расскажи мне, чтонибудь я хочу узнать, что ты думаешь, я хочу узнать, что ты говоришь и читаешь ли ты мой микрофон раз раз.
-"""
+        if result.reason == speechsdk.ResultReason.RecognizedSpeech:
+            return {"success": True, "text": result.text}
+        else:
+            return {"success": False, "error": "Не удалось распознать речь"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

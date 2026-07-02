@@ -1,0 +1,168 @@
+{% extends "_layout.html" %}
+
+{% block content %}
+<h3 class="center-align">Когнітивний Перекладач Azure</h3>
+
+<div class="row">
+    <div class="col s12 m6">
+        <div class="card">
+            <div class="card-content">
+                <span class="card-title">Оригинальный текст</span>
+                <div class="input-field">
+                    <textarea id="sourceText" class="materialize-textarea" placeholder="Нажмите 'Слушать' или введите текст..."></textarea>
+                </div>
+            </div>
+            <div class="card-action">
+                <button class="btn waves-effect waves-light" onclick="startDictation(this)">
+                    <i class="material-icons left">mic</i>Слушать
+                </button>
+                <button class="btn-flat waves-effect waves-dark right" onclick="speakText('sourceText', 'ru-RU')" title="Озвучить оригинал">
+                    <i class="material-icons">volume_up</i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col s12 m6">
+        <div class="card">
+            <div class="card-content">
+                <span class="card-title">Перевод</span>
+                
+                <div class="input-field">
+                    <select id="targetLang">
+                        <option value="en" selected>Английский</option>
+                        <option value="fr">Французский</option>
+                        <option value="de">Немецкий</option>
+                    </select>
+                    <label>Язык перевода</label>
+                </div>
+                
+                <div class="input-field">
+                    <textarea id="translatedText" class="materialize-textarea" readonly placeholder="Здесь появится перевод..."></textarea>
+                </div>
+            </div>
+            <div class="card-action">
+                <button class="btn waves-effect waves-light blue" onclick="translateText()">
+                    <i class="material-icons left">translate</i>Перевести
+                </button>
+                <button class="btn-flat waves-effect waves-dark right" onclick="speakText('translatedText', 'en-US')" title="Озвучить перевод">
+                    <i class="material-icons">volume_up</i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    // Инициализация компонентов Materialize CSS после загрузки DOM
+    document.addEventListener('DOMContentLoaded', function() {
+        var selects = document.querySelectorAll('select');
+        M.FormSelect.init(selects);
+        
+        // Автоматическое изменение размера textarea при динамическом добавлении текста
+        M.textareaAutoResize(document.getElementById('sourceText'));
+        M.textareaAutoResize(document.getElementById('translatedText'));
+    });
+
+    // Функция для получения CSRF токена из скрытого поля, которое вы добавили в _layout.html
+    function getCSRFToken() {
+        const tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        return tokenElement ? tokenElement.value : '';
+    }
+
+    // Базовые заголовки для fetch запросов
+    const fetchHeaders = {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCSRFToken()
+    };
+
+    async function startDictation(btn) {
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Слушаю...';
+        btn.classList.add('disabled');
+        
+        try {
+            const response = await fetch('/api/recognize/', { 
+                method: 'POST',
+                headers: fetchHeaders
+            });
+            const data = await response.json();
+            
+            if(data.text) {
+                const sourceTextArea = document.getElementById('sourceText');
+                sourceTextArea.value = data.text;
+                M.textareaAutoResize(sourceTextArea);
+                M.toast({html: 'Речь распознана', classes: 'green'});
+            } else {
+                M.toast({html: data.error || "Ошибка распознавания", classes: 'red'});
+            }
+        } catch (e) {
+            M.toast({html: "Сбой сети при обращении к серверу", classes: 'red'});
+        } finally {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('disabled');
+        }
+    }
+
+    async function translateText() {
+        const text = document.getElementById('sourceText').value;
+        const targetLang = document.getElementById('targetLang').value;
+        
+        if (!text.trim()) {
+            M.toast({html: 'Введите текст для перевода', classes: 'orange'});
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/translate/', {
+                method: 'POST',
+                headers: fetchHeaders,
+                body: JSON.stringify({ text: text, target_lang: targetLang })
+            });
+            
+            const data = await response.json();
+            if(data.translated_text) {
+                const translatedTextArea = document.getElementById('translatedText');
+                translatedTextArea.value = data.translated_text;
+                M.textareaAutoResize(translatedTextArea);
+            } else {
+                M.toast({html: data.error || "Ошибка перевода", classes: 'red'});
+            }
+        } catch (e) {
+            M.toast({html: "Ошибка при подключении к серверу", classes: 'red'});
+        }
+    }
+
+    async function speakText(elementId, defaultLang) {
+        let text = document.getElementById(elementId).value;
+        let lang = defaultLang;
+
+        if (elementId === 'translatedText') {
+            const target = document.getElementById('targetLang').value;
+            lang = target === 'en' ? 'en-US' : target === 'fr' ? 'fr-FR' : 'de-DE';
+        }
+
+        if(!text.trim()) {
+            M.toast({html: "Нет текста для озвучки", classes: 'orange'});
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/synthesize/', {
+                method: 'POST',
+                headers: fetchHeaders,
+                body: JSON.stringify({ text: text, lang: lang })
+            });
+            const data = await response.json();
+            
+            if (data.error) {
+                M.toast({html: data.error, classes: 'red'});
+            }
+        } catch (e) {
+            M.toast({html: "Ошибка запроса на озвучку", classes: 'red'});
+        }
+    }
+</script>
+{% endblock extra_js %}
