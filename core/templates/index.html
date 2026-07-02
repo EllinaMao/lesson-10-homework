@@ -1,5 +1,5 @@
 {% extends "_layout.html" %}
-
+{% load static %}
 {% block content %}
 <h3 class="center-align">Когнітивний Перекладач Azure</h3>
 
@@ -55,114 +55,6 @@
 {% endblock content %}
 
 {% block extra_js %}
-<script>
-    // Инициализация компонентов Materialize CSS после загрузки DOM
-    document.addEventListener('DOMContentLoaded', function() {
-        var selects = document.querySelectorAll('select');
-        M.FormSelect.init(selects);
-        
-        // Автоматическое изменение размера textarea при динамическом добавлении текста
-        M.textareaAutoResize(document.getElementById('sourceText'));
-        M.textareaAutoResize(document.getElementById('translatedText'));
-    });
-
-    // Функция для получения CSRF токена из скрытого поля, которое вы добавили в _layout.html
-    function getCSRFToken() {
-        const tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-        return tokenElement ? tokenElement.value : '';
-    }
-
-    // Базовые заголовки для fetch запросов
-    const fetchHeaders = {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': getCSRFToken()
-    };
-
-    async function startDictation(btn) {
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Слушаю...';
-        btn.classList.add('disabled');
-        
-        try {
-            const response = await fetch('/api/recognize/', { 
-                method: 'POST',
-                headers: fetchHeaders
-            });
-            const data = await response.json();
-            
-            if(data.text) {
-                const sourceTextArea = document.getElementById('sourceText');
-                sourceTextArea.value = data.text;
-                M.textareaAutoResize(sourceTextArea);
-                M.toast({html: 'Речь распознана', classes: 'green'});
-            } else {
-                M.toast({html: data.error || "Ошибка распознавания", classes: 'red'});
-            }
-        } catch (e) {
-            M.toast({html: "Сбой сети при обращении к серверу", classes: 'red'});
-        } finally {
-            btn.innerHTML = originalHtml;
-            btn.classList.remove('disabled');
-        }
-    }
-
-    async function translateText() {
-        const text = document.getElementById('sourceText').value;
-        const targetLang = document.getElementById('targetLang').value;
-        
-        if (!text.trim()) {
-            M.toast({html: 'Введите текст для перевода', classes: 'orange'});
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/translate/', {
-                method: 'POST',
-                headers: fetchHeaders,
-                body: JSON.stringify({ text: text, target_lang: targetLang })
-            });
-            
-            const data = await response.json();
-            if(data.translated_text) {
-                const translatedTextArea = document.getElementById('translatedText');
-                translatedTextArea.value = data.translated_text;
-                M.textareaAutoResize(translatedTextArea);
-            } else {
-                M.toast({html: data.error || "Ошибка перевода", classes: 'red'});
-            }
-        } catch (e) {
-            M.toast({html: "Ошибка при подключении к серверу", classes: 'red'});
-        }
-    }
-
-    async function speakText(elementId, defaultLang) {
-        let text = document.getElementById(elementId).value;
-        let lang = defaultLang;
-
-        if (elementId === 'translatedText') {
-            const target = document.getElementById('targetLang').value;
-            lang = target === 'en' ? 'en-US' : target === 'fr' ? 'fr-FR' : 'de-DE';
-        }
-
-        if(!text.trim()) {
-            M.toast({html: "Нет текста для озвучки", classes: 'orange'});
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/synthesize/', {
-                method: 'POST',
-                headers: fetchHeaders,
-                body: JSON.stringify({ text: text, lang: lang })
-            });
-            const data = await response.json();
-            
-            if (data.error) {
-                M.toast({html: data.error, classes: 'red'});
-            }
-        } catch (e) {
-            M.toast({html: "Ошибка запроса на озвучку", classes: 'red'});
-        }
-    }
-</script>
+    <script src="{% static 'js/ui.js' %}"></script>
+    <script src="{% static 'js/api.js' %}"></script>
 {% endblock extra_js %}
