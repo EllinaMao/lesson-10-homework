@@ -12,10 +12,39 @@ from django.views.generic import TemplateView
 
 
 # Create your views here.
-class IndexView(TemplateView):
+from django.shortcuts import render
+from django.views import View
+from .forms import TranslationForm
+from .helpers import text_to_translate
+class IndexView(View):
     template_name = "index.html"
 
+    def get(self, request, *args, **kwargs):
+        form = TranslationForm()
+        return render(request, self.template_name, {'form': form})
 
+    def post(self, request, *args, **kwargs):
+        form = TranslationForm(request.POST)
+        translated_text = ""
+        error_message = None
+
+        if form.is_valid():
+            text = form.cleaned_data.get('source_text', '')
+            target_lang = form.cleaned_data.get('target_lang', 'en')
+
+            if text:
+                result = text_to_translate.translate_text(text, target_lang)
+                if result.get("success"):
+                    translated_text = result["translated_text"]
+                else:
+                    error_message = result.get("error")
+
+        return render(request, self.template_name, {
+            'form': form,
+            'translated_text': translated_text,
+            'error_message': error_message
+        })
+    
 @method_decorator(csrf_exempt, name="dispatch")
 class RecognizeSpeechView(View):
 
