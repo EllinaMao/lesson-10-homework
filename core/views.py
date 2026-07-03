@@ -30,7 +30,7 @@ class IndexView(View):
 
         if form.is_valid():
             text = form.cleaned_data.get('source_text', '')
-            target_lang = form.cleaned_data.get('target_lang', 'en')
+            target_lang = form.cleaned_data.get('target_lang', 'en-US')
 
             if text:
                 result = text_to_translate.translate_text(text, target_lang)
@@ -49,19 +49,29 @@ class IndexView(View):
 class RecognizeSpeechView(View):
 
     def post(self, request, *args, **kwargs):
-        result = speech_to_text.recognize_from_mic(language="ru-RU")
+        default_lang = "en-US"  
+        
+        try:
+            if request.body:
+                data = json.loads(request.body)
+                lang = data.get("language", default_lang)
+        except json.JSONDecodeError:
+            pass
+
+        if not lang:
+            lang = default_lang
+        result = speech_to_text.recognize_from_mic(language=lang)
 
         if result.get("success"):
             return JsonResponse({"text": result["text"]})
         return JsonResponse({"error": result.get("error")}, status=400)
-
 
 @method_decorator(csrf_exempt, name="dispatch")
 class TranslateTextView(View):
     def post(self, request, *args, **kwargs):
         data = json.loads(request.body)
         text = data.get("text", "")
-        target_lang = data.get("target_lang", "en")
+        target_lang = data.get("target_lang", "en-US")
 
         result = text_to_translate.translate_text(text, target_lang)
 

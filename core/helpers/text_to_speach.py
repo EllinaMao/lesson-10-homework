@@ -3,6 +3,11 @@
 import azure.cognitiveservices.speech as speechsdk
 from azure.core.credentials import AzureKeyCredential
 
+
+
+'''
+https://learn.microsoft.com/ru-ru/azure/ai-services/speech-service/language-support?tabs=tts#voice-styles-and-roles
+'''
 from . import utils as u
 
 def speak_text(text_to_speak, language="en-US"):

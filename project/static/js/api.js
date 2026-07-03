@@ -13,10 +13,14 @@ async function startDictation(btn) {
     btn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Слушаю...';
     btn.classList.add('disabled');
 
+    // Считываем значение из поля, которое сгенерировал Django (id="sourceLang")
+    const sourceLang = document.getElementById('sourceLang').value;
+
     try {
-        const response = await fetch('/api/recognize/', {
+        const response = await fetch('api/recognize/', {
             method: 'POST',
-            headers: fetchHeaders
+            headers: fetchHeaders,
+            body: JSON.stringify({ language: sourceLang }) 
         });
         const data = await response.json();
 
@@ -46,7 +50,7 @@ async function translateText() {
     }
 
     try {
-        const response = await fetch('/api/translate/', {
+        const response = await fetch('api/translate/', {
             method: 'POST',
             headers: fetchHeaders,
             body: JSON.stringify({ text: text, target_lang: targetLang })
@@ -66,12 +70,17 @@ async function translateText() {
 }
 
 async function speakText(elementId, defaultLang) {
+    const lang_map = {
+        "ru-RU": "ru-RU",
+        "en-US": "en-US",
+        "uk-UA": "uk-UA",
+    }
     let text = document.getElementById(elementId).value;
     let lang = defaultLang;
 
     if (elementId === 'translatedText') {
         const target = document.getElementById('targetLang').value;
-        lang = target === 'en' ? 'en-US' : target === 'fr' ? 'fr-FR' : 'de-DE';
+        lang = lang_map[target] || defaultLang;
     }
 
     if (!text.trim()) {
@@ -80,7 +89,7 @@ async function speakText(elementId, defaultLang) {
     }
 
     try {
-        const response = await fetch('/api/synthesize/', {
+        const response = await fetch('api/synthesize/', {
             method: 'POST',
             headers: fetchHeaders,
             body: JSON.stringify({ text: text, lang: lang })
